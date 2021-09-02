@@ -8,7 +8,7 @@ import os
 import getpass
 import subprocess
 import sys
-from _hashlib import openssl_sha3_512
+from hashlib import sha3_512
 class PartitionDetails:
     def __init__(self, block: int, key: bytes):
         self.block = block
@@ -56,4 +56,4 @@ def unlock(salt, num_iterations, block_size, hashfunc):
     process.communicate(part_details.key)
     process.wait()
     print(f'Done unlocking {block_device} [{map_name}]')
-unlock(b'\x1b1\x87\x0f\xd5-}X\xcd\xe4\x95-L\x98\x0f\xd6\xaf\xdc\xca\x01\xdd\xbf\xbe\x82\x94/\x971\xd5\xee\x8fj\x1d\xc0\xf7\x92^{\xb4,\xd6\x9cd\xad\xc7\xb8!]f]#\xa8\x91\xb3b\x04y\xe7\xe3\x0b\xe5#\x80>', 10000, 4096, openssl_sha3_512)
+unlock(b'\x1b1\x87\x0f\xd5-}X\xcd\xe4\x95-L\x98\x0f\xd6\xaf\xdc\xca\x01\xdd\xbf\xbe\x82\x94/\x971\xd5\xee\x8fj\x1d\xc0\xf7\x92^{\xb4,\xd6\x9cd\xad\xc7\xb8!]f]#\xa8\x91\xb3b\x04y\xe7\xe3\x0b\xe5#\x80>', 10000, 4096, sha3_512)
