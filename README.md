@@ -32,7 +32,7 @@ $ <b>sudo python3 prepare.py /dev/sdb unlock.py</b>
 
 The script will then ask you for details on the partitions you want.
 
-Note that when it asks for block offsets, you can enter locations like <b>5M</b>, <b>4.5G</b>, etc to specify offsets in megabytes or gigabytes instead of 4096-bit blocks. Accepted postfixes are <b>B</b>, <b>K</b>, <b>M</b>, <b>G</b>, <b>T</b>, and <b>P</b>.
+Note that when it asks for block offsets, you can enter locations like <b>5M</b>, <b>4.5G</b>, etc to specify offsets in megabytes or gigabytes instead of 4096-byte blocks. Accepted postfixes are <b>B</b>, <b>K</b>, <b>M</b>, <b>G</b>, <b>T</b>, and <b>P</b>.
 
 Once an unlock script is generated, you should use it to open and set up your hidden filesystems.
 
