@@ -77,6 +77,27 @@ What follows is a full shell session in which I create several hidden partitions
 
 Along with this readme demo, I've also included the `unlock.py` script and seemingly random `blob` in this git repo. If you download my `unlock.py` and `blob`, feel free to try it out.
 
+The plaintext/encrypted data on `blob` is formatted as follows:
+
+```
+blob
+├─plaintext FAT
+│ └─turtles-clear.txt
+├─AAAA_crypt
+│ └─encrypted FAT
+│   └─turtles-AAAA.txt
+├─BBBB_crypt
+│ └─encrypted FAT
+│   └─turtles-BBBB.txt
+├─CCCC_crypt
+│ └─encrypted FAT
+│   ├─turtles-global-takeover-CCCC.txt
+│   └─turtle.jpg
+└─????_crypt
+  └─encrypted FAT
+    └─????.txt
+```
+
 Note: italicized text doesn't show up when running, it's simply an annotation.
 
 <pre>
