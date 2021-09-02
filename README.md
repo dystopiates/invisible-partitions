@@ -115,22 +115,22 @@ blob  mnt/  prepare.py
 $ <b>python3 prepare.py blob unlock.py</b>  <i># Prepare a salt with the desired properties</i>
 Device is 2560 blocks (10M)
 Getting details for partition 1...
-Password for partition 1: <i>AAAA</i>
-Re-enter: <i>AAAA</i>
+Password for partition 1: <i><b>AAAA</b></i>
+Re-enter: <i><b>AAAA</b></i>
 Starting location for partition 1: <b>5M</b>
 Target offset for partition 1: 1280 (5M)
 Add more partitions? (Y/n) <b>y</b>
 
 Getting details for partition 2...
-Password for partition 2: <i>BBBB</i>
-Re-enter: <i>BBBB</i>
+Password for partition 2: <i><b>BBBB</b></i>
+Re-enter: <i><b>BBBB</b></i>
 Starting location for partition 2: <b>2.5M</b>
 Target offset for partition 2: 640 (2.5M)
 Add more partitions? (Y/n) <b>y</b>
 
 Getting details for partition 3...
-Password for partition 3: <i>CCCC</i>
-Re-enter: <i>CCCC</i>
+Password for partition 3: <i><b>CCCC</b></i>
+Re-enter: <i><b>CCCC</b></i>
 Starting location for partition 3: <b>7.5M</b>
 Target offset for partition 3: 1920 (7.5M)
 Add more partitions? (Y/n) <b>n</b>
@@ -166,7 +166,7 @@ With this, we now have an `unlock.py` script! Now, use it to create the mappings
 
 <pre>
 $ <b>sudo python3 unlock.py blob AAAA_crypt</b>
-Password for blob [AAAA_crypt]: <i>AAAA</i>
+Password for blob [AAAA_crypt]: <i><b>AAAA</b></i>
 Unlocking blob [AAAA_crypt]...
 Partition starts at block 1270 (4.961M)
 Done unlocking blob [AAAA_crypt]
