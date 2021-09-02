@@ -35,6 +35,12 @@ def block_to_byte(block: int, block_size: int) -> str:
         block /= 1024
         unit += 1
     return format(block, '.03f').rstrip('0').rstrip('.') + units[unit]
+def get_file_size_bytes(filename: str) -> int:
+    fd = os.open(filename, os.O_RDONLY)
+    try:
+        return os.lseek(fd, 0, os.SEEK_END)
+    finally:
+        os.close(fd)
 def unlock(salt, num_iterations, block_size, hashfunc):
     # Gets the block device and mapped name from stdin
     if len(sys.argv) != 3:
@@ -42,7 +48,7 @@ def unlock(salt, num_iterations, block_size, hashfunc):
         sys.exit(1)
     block_device = sys.argv[1]
     map_name = sys.argv[2]
-    num_blocks = os.path.getsize(block_device) // block_size
+    num_blocks = get_file_size_bytes(block_device) // block_size
     disk_blocks_per_logical_block = block_size // 512
     password = getpass.getpass(f'Password for {block_device} [{map_name}]: ')
     part_details = get_partition_details(password, salt, num_iterations, 512, num_blocks, hashfunc)

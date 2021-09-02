@@ -11,7 +11,7 @@ def prepare_interactive(block_device: str, unlocker_filename: str):
     keysize_bytes = 512 // 8
     num_iterations = 10_000  # TODO: Figure this out dynamically
     block_size = 4096  # TODO: Make this configurable
-    max_blocks = os.path.getsize(block_device) // block_size
+    max_blocks = get_file_size_bytes(block_device) // block_size
     hashfunc = sha3_512  # TODO: Make this configurable
 
     print(f'Device is {max_blocks} blocks ({block_to_byte(max_blocks, block_size)})')
@@ -115,6 +115,14 @@ def prepare_interactive(block_device: str, unlocker_filename: str):
     print(f'Saved unlocker script to {unlocker_filename}')
 
 
+def get_file_size_bytes(filename: str) -> int:
+    fd = os.open(filename, os.O_RDONLY)
+    try:
+        return os.lseek(fd, 0, os.SEEK_END)
+    finally:
+        os.close(fd)
+
+
 def block_to_byte(block: int, block_size: int) -> str:
     block *= block_size
 
@@ -211,7 +219,7 @@ def unlock(salt, num_iterations, block_size, hashfunc):
     block_device = sys.argv[1]
     map_name = sys.argv[2]
 
-    num_blocks = os.path.getsize(block_device) // block_size
+    num_blocks = get_file_size_bytes(block_device) // block_size
     disk_blocks_per_logical_block = block_size // 512
     password = getpass.getpass(f'Password for {block_device} [{map_name}]: ')
 
@@ -246,6 +254,7 @@ def generate_unlocker(salt: bytes, num_iterations: int, block_size: int, hashfun
     unlocker += inspect.getsource(PartitionDetails) + '\n'
     unlocker += inspect.getsource(get_partition_details) + '\n'
     unlocker += inspect.getsource(block_to_byte) + '\n'
+    unlocker += inspect.getsource(get_file_size_bytes) + '\n'
     unlocker += inspect.getsource(unlock) + '\n'
     unlocker += f'unlock({repr(salt)}, {num_iterations}, {block_size}, {hashfunc.__name__})\n'
 
