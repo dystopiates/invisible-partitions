@@ -167,3 +167,17 @@ $ <b>sudo cryptsetup close /dev/mapper/AAAA_crypt</b>  <i># Important! Remember 
 $ <b>sudo python3 unlock.py blob BBBB_crypt</b>
 <i># ... then repeat setup for the other hidden partitions, BBBB and CCCC</i>
 </pre>
+
+Note, that you can even have unencrypted partitions at the very front of the drive!
+
+<pre>
+$ <b>mkdir plain</b>
+
+$ <b>sudo mount blob plain</b>
+
+$ <b>ls plain</b>
+turtles-clear.txt
+
+$ <b>cat plain/turtles-clear.txt</b> 
+It's turtles all the day down
+</pre>
