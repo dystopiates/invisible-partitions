@@ -51,7 +51,7 @@ Example:
 $ <b>sudo python3 unlock.py /dev/sdb crypt_part</b>
 Password for blob [crypt_part]: 
 Unlocking blob [crypt_part]...
-Partition starts at block 1270 (4.961M)
+Partition starts at block 1277 (4.961M)
 Done unlocking blob [crypt_part]
 
 $ <b>lsblk</b>
@@ -168,7 +168,7 @@ With this, we now have an `unlock.py` script! Now, use it to create the mappings
 $ <b>sudo python3 unlock.py blob AAAA_crypt</b>
 Password for blob [AAAA_crypt]: <i><b>AAAA</b></i>
 Unlocking blob [AAAA_crypt]...
-Partition starts at block 1270 (4.961M)
+Partition starts at block 1277 (4.961M)
 Done unlocking blob [AAAA_crypt]
 
 $ <b>lsblk</b>
