@@ -89,7 +89,7 @@ def prepare_interactive(block_device: str, unlocker_filename: str):
     print('It is hard to target offsets exactly, so an acceptable deviation can be set.')
     print('This tool searches for offsets such that the total cumulative deviations')
     print('are less than n blocks.')
-    max_offset_deviation = read_block('Maximum cumulative offset deviation: ')
+    max_offset_deviation = read_block('Maximum offset deviation: ')
     print(
         f'Using maximum cumulative deviation {max_offset_deviation} ({block_to_byte(max_offset_deviation, block_size)})'
     )
