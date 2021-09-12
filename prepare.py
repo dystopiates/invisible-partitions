@@ -4,12 +4,13 @@ import secrets
 import subprocess
 import sys
 from hashlib import sha3_512
-from typing import Dict, Tuple, Type, List
+from typing import Dict, Tuple, Type, List, Any
 
 
 def prepare_interactive(block_device: str, unlocker_filename: str):
     keysize_bytes = 512 // 8
-    num_iterations = 10_000  # TODO: Figure this out dynamically
+    min_iter = 10_000  # TODO: Figure this out dynamically
+    max_iter = 2 * min_iter
     block_size = 4096  # TODO: Make this configurable
     max_blocks = get_file_size_bytes(block_device) // block_size
     hashfunc = sha3_512  # TODO: Make this configurable
@@ -88,16 +89,18 @@ def prepare_interactive(block_device: str, unlocker_filename: str):
     print('It is hard to target offsets exactly, so an acceptable deviation can be set.')
     print('This tool searches for offsets such that the total cumulative deviations')
     print('are less than n blocks.')
-    max_cum_offset_deviation = read_block('Maximum cumulative offset deviation: ')
+    max_offset_deviation = read_block('Maximum cumulative offset deviation: ')
     print(
-        f'Using maximum cumulative deviation {max_cum_offset_deviation} ({block_to_byte(max_cum_offset_deviation, block_size)})')
+        f'Using maximum cumulative deviation {max_offset_deviation} ({block_to_byte(max_offset_deviation, block_size)})'
+    )
 
     found_salt = False
     salt = b''
+    iterations = 0
 
     while not found_salt:
-        salt, deviation, discovered_parts = find_salt(
-            target_partitions, max_blocks, max_cum_offset_deviation, keysize_bytes, num_iterations, hashfunc
+        salt, iterations, deviation, discovered_parts = find_salt(
+            target_partitions, max_blocks, max_offset_deviation, keysize_bytes, min_iter, max_iter, hashfunc
         )
 
         print(f'Found a salt with cumulative deviation {deviation} ({block_to_byte(deviation, block_size)}).')
@@ -110,7 +113,7 @@ def prepare_interactive(block_device: str, unlocker_filename: str):
         found_salt = read_bool(f'Accept this partition layout and generate an unlocker?', True)
 
     with open(unlocker_filename, 'w') as out:
-        out.write(generate_unlocker(salt, num_iterations, block_size, hashfunc))
+        out.write(generate_unlocker(salt, iterations, block_size, hashfunc))
 
     print(f'Saved unlocker script to {unlocker_filename}')
 
@@ -137,46 +140,74 @@ def block_to_byte(block: int, block_size: int) -> str:
 
 
 def find_salt(
-        partitions: Dict[str, int], max_blocks: int, max_cum_offset_deviation: int, keysize_bytes: int,
-        num_iterations: int, hashfunc
-) -> Tuple[bytes, int, Dict[str, int]]:
+        partitions: Dict[str, int], max_blocks: int, max_offset_deviation: int, keysize_bytes: int,
+        min_iter: int, max_iter: int, hashfunc
+) -> Tuple[bytes, int, int, Dict[str, int]]:
+    # Returns (salt, iterations, deviation, {password: block})
     digest_size_bytes = hashfunc().digest_size
 
     salt = b''
-    deviation = float('inf')
-    best_deviation = float('inf')
-    discovered_partitions: Dict[str, int] = {}
+    iterations = 0
+    deviation = 0
 
-    while deviation > max_cum_offset_deviation:
+    best_deviation = float('inf')
+
+    while best_deviation > max_offset_deviation:
         salt = secrets.randbits(digest_size_bytes * 8).to_bytes(digest_size_bytes, 'big')
 
-        deviation, discovered_partitions = grade_salt(
-            salt, partitions, max_blocks, num_iterations, keysize_bytes, best_deviation, hashfunc
+        iterations, deviation = grade_salt(
+            salt, partitions, max_blocks, min_iter, max_iter, keysize_bytes, hashfunc
         )
 
         if deviation < best_deviation:
             print(f'Found a deviation of {deviation}...')
             best_deviation = deviation
 
-    return salt, deviation, discovered_partitions
+    discovered_partitions = {
+        password: get_partition_details(
+            iterate(None, password.encode() + salt, hashfunc, iterations),
+            password.encode() + salt,
+            keysize_bytes,
+            max_blocks,
+            hashfunc
+        ).block
+        for password in partitions
+    }
+
+    return salt, iterations, deviation, discovered_partitions
 
 
 def grade_salt(
-        salt: bytes, partitions: Dict[str, int], max_blocks: int, num_iterations: int, keysize_bytes: int,
-        max_deviation: int, hashfunc: Type
-) -> Tuple[int, Dict[str, int]]:
-    deviation = 0
-    discovered_partitions: Dict[str, int] = {}
+        salt: bytes, partitions: Dict[str, int], max_blocks: int, min_iter: int, max_iter: int, keysize_bytes: int,
+        hashfunc: Type
+) -> Tuple[int, int]:
+    # Returns a tuple of (iterations, max_deviation)
+    best_iter = None
+    best_max_deviation = float('inf')
+
+    work: List[Tuple[Any, bytes, int]] = []  # List of (h, pass_salt, target)
 
     for password, target_offset in partitions.items():
-        details = get_partition_details(password, salt, num_iterations, keysize_bytes, max_blocks, hashfunc)
-        discovered_partitions[password] = details.block
-        deviation += abs(target_offset - details.block)
+        pass_salt = password.encode() + salt
+        work.append((iterate(None, pass_salt, hashfunc, min_iter - 1), pass_salt, target_offset))
 
-        if deviation > max_deviation:
-            return deviation, {}
+    for n in range(min_iter, max_iter):
+        max_deviation = 0
 
-    return deviation, discovered_partitions
+        for i, (h, pass_salt, target_offset) in enumerate(work):
+            h = iterate(h, pass_salt, hashfunc)
+
+            work[i] = (h, pass_salt, target_offset)
+            details = get_partition_details(h, pass_salt, keysize_bytes, max_blocks, hashfunc)
+            deviation = abs(details.block - target_offset)
+
+            max_deviation = max(max_deviation, deviation)
+
+        if max_deviation < best_max_deviation:
+            best_iter = n
+            best_max_deviation = max_deviation
+
+    return best_iter, best_max_deviation
 
 
 class PartitionDetails:
@@ -185,27 +216,28 @@ class PartitionDetails:
         self.key = key
 
 
-def get_partition_details(
-        password: str, salt: bytes, num_iterations: int, keysize_bytes: int, max_blocks: int, hashfunc
-) -> PartitionDetails:
-    passsalt = password.encode() + salt
-
-    h = hashfunc(passsalt)
-
-    for _ in range(num_iterations):
-        h = hashfunc(h.digest() + passsalt)
-
+def get_partition_details(h, pass_salt: bytes, keysize_bytes: int, max_blocks: int, hashfunc) -> PartitionDetails:
     block = int.from_bytes(h.digest(), 'big') % max_blocks
 
-    h = hashfunc(h.digest() + bytes([block % 256]) + passsalt)
+    h = hashfunc(h.digest() + bytes([block % 256]) + pass_salt)
 
     key = b''
     while len(key) < keysize_bytes:
         key += h.digest()
 
-        h = hashfunc(h.digest() + passsalt)
+        h = hashfunc(h.digest() + pass_salt)
 
     return PartitionDetails(block, key[:keysize_bytes])
+
+
+def iterate(h, pass_salt, hashfunc, n=1):
+    if h is None:
+        h = hashfunc()
+
+    for _ in range(n):
+        h = hashfunc(h.digest() + pass_salt)
+
+    return h
 
 
 # TODO: Generate num_iterations dynamically instead of using a fixed value
@@ -222,8 +254,10 @@ def unlock(salt, num_iterations, block_size, hashfunc):
     num_blocks = get_file_size_bytes(block_device) // block_size
     disk_blocks_per_logical_block = block_size // 512
     password = getpass.getpass(f'Password for {block_device} [{map_name}]: ')
+    pass_salt = password.encode() + salt
 
-    part_details = get_partition_details(password, salt, num_iterations, 512, num_blocks, hashfunc)
+    h = iterate(None, pass_salt, hashfunc, num_iterations)
+    part_details = get_partition_details(h, pass_salt, 512, num_blocks, hashfunc)
 
     print(f'Unlocking {block_device} [{map_name}]...')
     print(f'Partition starts at block {part_details.block} ({block_to_byte(part_details.block, block_size)})')
@@ -252,6 +286,7 @@ def generate_unlocker(salt: bytes, num_iterations: int, block_size: int, hashfun
     unlocker += 'import sys\n'
     unlocker += f'from {hashfunc.__module__} import {hashfunc.__name__}\n'
     unlocker += inspect.getsource(PartitionDetails) + '\n'
+    unlocker += inspect.getsource(iterate) + '\n'
     unlocker += inspect.getsource(get_partition_details) + '\n'
     unlocker += inspect.getsource(block_to_byte) + '\n'
     unlocker += inspect.getsource(get_file_size_bytes) + '\n'
